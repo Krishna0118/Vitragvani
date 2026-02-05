@@ -71,3 +71,5 @@ export default defineConfig([
   },
 ])
 ```
+
+the change was done by the amit
