@@ -20,7 +20,7 @@ DB_CONFIG = {
     "host": os.getenv("DB_HOST", "localhost"),
     "user": os.getenv("DB_USER", "root"),
     "password": os.getenv("DB_PASSWORD"),
-    "database": "vitragvani_db" 
+    "database": "smart_library" 
 }
 
 def get_db_connection():
@@ -106,6 +106,61 @@ def search():
         "results": results, 
         "ai_logic": intent
     })
+
+@app.route('/register', methods=['POST'])
+def register():
+    data = request.json
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Ensure your table has first_name and last_name columns
+        query = "INSERT INTO users (first_name, last_name, email, password) VALUES (%s, %s, %s, %s)"
+        cursor.execute(query, (
+            data.get('first_name'), 
+            data.get('last_name'), 
+            data.get('email'), 
+            data.get('password')
+        ))
+        conn.commit()
+        return jsonify({"status": "success", "message": "User registered"}), 201
+    except Exception as e:
+        print(f"Registration Error: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 400
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.json
+    email = data.get('email')
+    password = data.get('password')
+    conn = None
+    cursor = None
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        # Select both names to show in the Welcome header
+        query = "SELECT first_name, last_name, email FROM users WHERE email = %s AND password = %s"
+        cursor.execute(query, (email, password))
+        user = cursor.fetchone()
+
+        if user:
+            return jsonify({
+                "status": "success", 
+                "user": user 
+            }), 200
+        else:
+            return jsonify({"status": "error", "message": "Invalid credentials"}), 401
+    except Exception as e:
+        print(f"Login Error: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
