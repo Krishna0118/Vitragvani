@@ -6,8 +6,10 @@ from flask_cors import CORS
 from openai import OpenAI
 from dotenv import load_dotenv
 
+
 load_dotenv()
 app = Flask(__name__)
+
 # Ensure this matches your Vite port
 CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
 
@@ -44,6 +46,8 @@ def parse_intent_smart(user_query):
         response_format={"type": "json_object"}
     )
     return json.loads(response.choices[0].message.content)
+
+
 
 @app.route('/search', methods=['GET'])
 def search():
