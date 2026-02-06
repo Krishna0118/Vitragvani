@@ -157,65 +157,130 @@ const Footer = () => (
   </footer>
 );
 
+
+
+// ... imports stay the same ...
+
+const ResultCard = ({ item }: { item: any }) => {
+  const type = item.res_type;
+  
+  // Mapping titles and gatha numbers which differ across tables
+  const title = item.shastra_name || item.shastraname || "Untitled";
+  const gatha = item.gatha_no_bol_no || item['Gatha No/Bol No'] || null;
+  
+  // Videos often store YouTube links in 'hindi' or 'gujarati' columns
+  const link = item.hindi || item.gujarati || item.file_path || item.hindi_pdf_path;
+
+  const getIcon = () => {
+    switch(type) {
+      case 'audio': return <Headphones className="text-blue-600" />;
+      case 'book': return <FileText className="text-red-600" />;
+      case 'video': return <Youtube className="text-green-600" />;
+      default: return <Search className="text-gray-400" />;
+    }
+  };
+
+  return (
+    <div className="bg-white border border-[#e9c46a]/30 p-5 rounded-xl shadow-sm hover:shadow-md transition-all text-left flex flex-col h-full">
+      <div className="flex justify-between items-start mb-3">
+        <div className="p-2 bg-[#fde59a]/20 rounded-lg">{getIcon()}</div>
+        <span className="text-[10px] font-bold uppercase bg-gray-100 px-2 py-1 rounded tracking-wider text-gray-500">
+          {type}
+        </span>
+      </div>
+      
+      <div className="flex-grow">
+        <h3 className="font-serif text-lg text-[#6b4423] font-bold leading-tight mb-2">
+          {title}
+        </h3>
+        <div className="text-sm text-gray-600 space-y-1 mb-4">
+          <p><strong>Rachayita:</strong> {item.rachaita || item.rachayita || "Pujya Gurudevshree"}</p>
+          {gatha && <p><strong>Gatha/Bol:</strong> {gatha}</p>}
+          {item.pravachan_date && <p><strong>Date:</strong> {item.pravachan_date}</p>}
+        </div>
+      </div>
+
+      {link && (
+        <a 
+          href={link} 
+          target="_blank" 
+          rel="noreferrer" 
+          className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-bold text-white transition-colors ${
+            type === 'video' ? 'bg-green-700 hover:bg-green-800' : 'bg-[#6b4423] hover:bg-black'
+          }`}
+        >
+          {type === 'video' ? 'Watch Video' : type === 'audio' ? 'Listen Audio' : 'Read Book'} 
+          <ExternalLink size={14} />
+        </a>
+      )}
+    </div>
+  );
+};
+
 export default function App() {
   const navigate = useNavigate();
-  // Simulate user state (null = guest, object = logged in)
   const [user, setUser] = useState<{ first_name: string; last_name: string } | null>(null);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Check if a user is logged in when the app starts
     const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
-        console.error("Failed to parse user from local storage", e);
-      }
-    }
+    if (savedUser) setUser(JSON.parse(savedUser));
   }, []);
 
+  const handleSearch = async () => {
+    if (!query) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`http://localhost:5000/search?q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      setResults(data.results);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogout = () => {
-    // 1. Remove user data from browser storage
     localStorage.removeItem('user');
-    
-    // 2. Clear the app state so the UI updates immediately
     setUser(null);
-    
-    // 3. Redirect to the home/normal view
     navigate('/');
-    
-    // 4. Optional: Force a refresh to ensure all components reset
-    window.location.reload();
   };
 
   return (
     <div className="min-h-screen bg-[#fffdfa]">
       <Routes>
-        {/* Main Librarian Search Page */}
         <Route path="/" element={
           <>
             <Header user={user} onLogout={handleLogout} />
-            <main className="max-w-4xl mx-auto py-24 px-4 text-center">
-              <h2 className="text-4xl font-serif text-[#6b4423] mb-8 font-bold tracking-tight">Smart Librarian Search</h2>
-              <div className="relative shadow-2xl rounded-full flex items-center bg-white border-2 border-[#e9c46a] p-1.5 focus-within:border-[#6b4423] transition-all">
-                <input 
-                  type="text" 
-                  placeholder="Search Shastra (e.g., Samaysar Gatha 39)" 
-                  className="flex-grow px-8 py-3 outline-none text-lg rounded-full font-serif"
-                />
-                <div className="flex items-center gap-3 pr-3">
-                  <Mic size={24} className="text-gray-300 cursor-pointer hover:text-[#b48a2a]" />
-                  <button className="bg-[#6b4423] p-3.5 rounded-full text-white hover:bg-black shadow-lg">
-                    <Search size={20} />
+            <main className="max-w-6xl mx-auto py-16 px-4">
+              <div className="max-w-3xl mx-auto text-center mb-16">
+                <h2 className="text-4xl font-serif text-[#6b4423] mb-8 font-bold">Smart Librarian Search</h2>
+                <div className="relative shadow-2xl rounded-full flex items-center bg-white border-2 border-[#e9c46a] p-1.5 focus-within:border-[#6b4423] transition-all">
+                  <input 
+                    type="text" 
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    placeholder="Search Shastra (e.g., Behenshree Pravachan)" 
+                    className="flex-grow px-8 py-3 outline-none text-lg rounded-full font-serif"
+                  />
+                  <button onClick={handleSearch} className="bg-[#6b4423] p-3.5 rounded-full text-white hover:bg-black transition-all">
+                    {loading ? <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" /> : <Search size={20} />}
                   </button>
                 </div>
+              </div>
+
+              {/* Grid of Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {results.map((item, idx) => <ResultCard key={idx} item={item} />)}
               </div>
             </main>
             <Footer />
           </>
         } />
-
-        {/* Login Page Route */}
         <Route path="/login" element={<Login />} />
       </Routes>
     </div>
